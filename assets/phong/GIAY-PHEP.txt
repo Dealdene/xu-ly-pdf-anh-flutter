@@ -1,0 +1,9 @@
+DejaVuSans.ttf: phông DejaVu (https://dejavu-fonts.github.io), giấy phép tự do dựa trên Bitstream Vera, cho phép dùng, sửa và phân phối lại kèm phần mềm.
+Dùng để ghi lớp chữ ẩn (tìm kiếm, chép chữ) trong PDF; phông có đủ chữ tiếng Việt.
+
+tessdata/vie.traineddata: dữ liệu nhận dạng tiếng Việt của Tesseract (https://github.com/tesseract-ocr/tessdata), giấy phép Apache 2.0.
+
+tessdata/osd.traineddata: dữ liệu đoán chiều chữ, cùng kho tessdata của Tesseract (https://github.com/tesseract-ocr/tessdata), giấy phép Apache 2.0.
+
+LiberationSerif-*.ttf, LiberationSans-*.ttf (thường, đậm, nghiêng, đậm nghiêng): phông Liberation 2.1.5 (https://github.com/liberationfonts/liberation-fonts), giấy phép SIL Open Font License 1.1, cho phép dùng, nhúng và phân phối lại kèm phần mềm.
+Dùng để vẽ chữ mới khi sửa chữ trên ảnh trang; cùng kích thước chữ với Times New Roman, Arial nên chữ sửa khớp văn bản in bằng hai phông này.
