@@ -1,6 +1,7 @@
 // Màn 2 · Chụp, tự động chụp. Khung hình xem trước được phân tích trong một isolate riêng
 // (BoTuChup); đủ điều kiện thì gọi takePicture() lấy ảnh độ phân giải gốc.
 import 'dart:async';
+import 'dart:io';
 import 'dart:isolate';
 
 import 'package:camera/camera.dart';
@@ -90,7 +91,13 @@ class _ManChupState extends State<ManChup> with WidgetsBindingObserver {
       // nhận dạng chữ kém); máy không mở được mức tối đa thì lùi về 1080p.
       CameraController? moDuoc;
       for (final mucDo in const [ResolutionPreset.max, ResolutionPreset.veryHigh]) {
-        final c = CameraController(sau, mucDo, enableAudio: false, imageFormatGroup: ImageFormatGroup.yuv420);
+        // iOS: khung BGRA một lớp (YUV của iOS chỉ có 2 lớp, khác Android 3 lớp)
+        final c = CameraController(
+          sau,
+          mucDo,
+          enableAudio: false,
+          imageFormatGroup: Platform.isIOS ? ImageFormatGroup.bgra8888 : ImageFormatGroup.yuv420,
+        );
         try {
           await c.initialize();
           moDuoc = c;
@@ -154,7 +161,7 @@ class _ManChupState extends State<ManChup> with WidgetsBindingObserver {
   }
 
   void _khiCoKhung(CameraImage img) {
-    if (_banPhanTich || _dangChup || img.planes.length < 3) return;
+    if (_banPhanTich || _dangChup || (img.planes.length < 3 && img.format.group != ImageFormatGroup.bgra8888)) return;
     _banPhanTich = true;
     _phanTich.gui(img, _cam!.description.sensorOrientation, _dongHo.elapsedMicroseconds / 1e6, kho.caiDat.thoiGianGiu);
   }
@@ -283,28 +290,40 @@ class _ManChupState extends State<ManChup> with WidgetsBindingObserver {
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
       padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-      decoration: BoxDecoration(color: dangThay ? const Color(0xFF1F6F43) : Mau.cam, borderRadius: BorderRadius.circular(14)),
-      child: Row(children: [
-        Icon(dangThay ? Icons.photo_camera : Icons.warning_amber_rounded, color: Colors.white, size: 20),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(chu, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-        ),
-        if (!dangThay)
-          TextButton(
-            style: TextButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Mau.chu, shape: const StadiumBorder()),
-            onPressed: _chupLai,
-            child: const Text('Chụp lại', style: TextStyle(fontWeight: FontWeight.w700)),
+      decoration: BoxDecoration(
+        color: dangThay ? const Color(0xFF1F6F43) : Mau.cam,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Icon(dangThay ? Icons.photo_camera : Icons.warning_amber_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              chu,
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
           ),
-        IconButton(
-          tooltip: dangThay ? 'Thôi, chụp trang mới' : 'Bỏ qua',
-          icon: const Icon(Icons.close, color: Colors.white, size: 20),
-          onPressed: () => setState(() {
-            _trangBao = null;
-            _thayTiep = null;
-          }),
-        ),
-      ]),
+          if (!dangThay)
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Mau.chu,
+                shape: const StadiumBorder(),
+              ),
+              onPressed: _chupLai,
+              child: const Text('Chụp lại', style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          IconButton(
+            tooltip: dangThay ? 'Thôi, chụp trang mới' : 'Bỏ qua',
+            icon: const Icon(Icons.close, color: Colors.white, size: 20),
+            onPressed: () => setState(() {
+              _trangBao = null;
+              _thayTiep = null;
+            }),
+          ),
+        ],
+      ),
     );
   }
 
@@ -703,6 +722,20 @@ class _BoPhanTich {
       return;
     }
     final p = img.planes;
+    if (p.length == 1) {
+      // iOS: BGRA
+      g.send({
+        'lenh': 'khung',
+        'bgra': TransferableTypedData.fromList([p[0].bytes]),
+        'rong': img.width,
+        'cao': img.height,
+        'buoc': p[0].bytesPerRow,
+        'xoay': xoay,
+        't': t,
+        'giu': giu,
+      });
+      return;
+    }
     g.send({
       'lenh': 'khung',
       'y': TransferableTypedData.fromList([p[0].bytes]),
@@ -740,17 +773,25 @@ void _luongPhanTich(SendPort ra) {
     }
     try {
       bo.ch.thoiGianGiu = mm['giu'] as double;
-      final anh = bgrTuYuv(
-        y: (mm['y'] as TransferableTypedData).materialize().asUint8List(),
-        u: (mm['u'] as TransferableTypedData).materialize().asUint8List(),
-        v: (mm['v'] as TransferableTypedData).materialize().asUint8List(),
-        rong: mm['rong'] as int,
-        cao: mm['cao'] as int,
-        buocY: mm['buocY'] as int,
-        buocUV: mm['buocUV'] as int,
-        buocDiemUV: mm['buocDiemUV'] as int,
-        xoay: mm['xoay'] as int,
-      );
+      final anh = mm.containsKey('bgra')
+          ? bgrTuBgra(
+              bgra: (mm['bgra'] as TransferableTypedData).materialize().asUint8List(),
+              rong: mm['rong'] as int,
+              cao: mm['cao'] as int,
+              buoc: mm['buoc'] as int,
+              xoay: mm['xoay'] as int,
+            )
+          : bgrTuYuv(
+              y: (mm['y'] as TransferableTypedData).materialize().asUint8List(),
+              u: (mm['u'] as TransferableTypedData).materialize().asUint8List(),
+              v: (mm['v'] as TransferableTypedData).materialize().asUint8List(),
+              rong: mm['rong'] as int,
+              cao: mm['cao'] as int,
+              buocY: mm['buocY'] as int,
+              buocUV: mm['buocUV'] as int,
+              buocDiemUV: mm['buocDiemUV'] as int,
+              xoay: mm['xoay'] as int,
+            );
       ra.send(bo.nhanKhung(anh, mm['t'] as double).toMap());
     } catch (_) {
       ra.send(TrangThaiTuChup('khong_thay').toMap());

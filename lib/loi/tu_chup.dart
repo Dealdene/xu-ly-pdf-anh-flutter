@@ -55,7 +55,15 @@ class CauHinhTuChup {
 }
 
 class TrangThaiTuChup {
-  TrangThaiTuChup(this.ma, {this.khung, this.kinKhung = false, this.tienDo = 0, this.soTrang = 0, this.rong = 0, this.cao = 0});
+  TrangThaiTuChup(
+    this.ma, {
+    this.khung,
+    this.kinKhung = false,
+    this.tienDo = 0,
+    this.soTrang = 0,
+    this.rong = 0,
+    this.cao = 0,
+  });
 
   String ma;
   List<Diem>? khung; // theo tọa độ ảnh phân tích (rong × cao)
@@ -67,24 +75,32 @@ class TrangThaiTuChup {
   String get loiNhac => ma == 'da_chup' ? 'Đã chụp trang $soTrang' : (loiNhacTuChup[ma] ?? '');
 
   Map<String, Object?> toMap() => {
-        'ma': ma,
-        'khung': khung == null ? null : [for (final (x, y) in khung!) ...[x, y]],
-        'kinKhung': kinKhung,
-        'tienDo': tienDo,
-        'soTrang': soTrang,
-        'rong': rong,
-        'cao': cao,
-      };
+    'ma': ma,
+    'khung': khung == null
+        ? null
+        : [
+            for (final (x, y) in khung!) ...[x, y],
+          ],
+    'kinKhung': kinKhung,
+    'tienDo': tienDo,
+    'soTrang': soTrang,
+    'rong': rong,
+    'cao': cao,
+  };
 
   static TrangThaiTuChup fromMap(Map m) {
     final k = m['khung'] as List?;
-    return TrangThaiTuChup(m['ma'] as String,
-        khung: k == null ? null : [for (var i = 0; i < 8; i += 2) ((k[i] as num).toDouble(), (k[i + 1] as num).toDouble())],
-        kinKhung: m['kinKhung'] as bool,
-        tienDo: (m['tienDo'] as num).toDouble(),
-        soTrang: m['soTrang'] as int,
-        rong: m['rong'] as int,
-        cao: m['cao'] as int);
+    return TrangThaiTuChup(
+      m['ma'] as String,
+      khung: k == null
+          ? null
+          : [for (var i = 0; i < 8; i += 2) ((k[i] as num).toDouble(), (k[i + 1] as num).toDouble())],
+      kinKhung: m['kinKhung'] as bool,
+      tienDo: (m['tienDo'] as num).toDouble(),
+      soTrang: m['soTrang'] as int,
+      rong: m['rong'] as int,
+      cao: m['cao'] as int,
+    );
   }
 }
 
@@ -93,7 +109,8 @@ class TrangThaiTuChup {
 /// nằm trong trang không tính. Video chụp thật: khung có tay 1–28%, khung sạch 0%.
 double tiLeTay(cv.Mat nho, List<Diem> khung) {
   final h = nho.rows, w = nho.cols;
-  final cx = khung.map((p) => p.$1).reduce((a, b) => a + b) / 4, cy = khung.map((p) => p.$2).reduce((a, b) => a + b) / 4;
+  final cx = khung.map((p) => p.$1).reduce((a, b) => a + b) / 4,
+      cy = khung.map((p) => p.$2).reduce((a, b) => a + b) / 4;
   final trong = [for (final (x, y) in khung) (cx + (x - cx) * 0.84, cy + (y - cy) * 0.84)];
   final ngoaiD = u8Chep(cv.fillPoly(matNaRong(h, w), daGiac(khung), cv.Scalar.all(1)));
   final trongD = u8Chep(cv.fillPoly(matNaRong(h, w), daGiac(trong), cv.Scalar.all(1)));
@@ -172,7 +189,12 @@ Float32List chuKyTrang(cv.Mat xam, List<Diem> khung) {
   const rong = _ckRong * 2, cao = _ckCao * 2;
   final m = cv.getPerspectiveTransform2f(
     cv.VecPoint2f.fromList([for (final (x, y) in khung) cv.Point2f(x, y)]),
-    cv.VecPoint2f.fromList([cv.Point2f(0, 0), cv.Point2f(rong - 1, 0), cv.Point2f(rong - 1, cao - 1), cv.Point2f(0, cao - 1)]),
+    cv.VecPoint2f.fromList([
+      cv.Point2f(0, 0),
+      cv.Point2f(rong - 1, 0),
+      cv.Point2f(rong - 1, cao - 1),
+      cv.Point2f(0, cao - 1),
+    ]),
   );
   final to = cv.warpPerspective(xam, m, (rong, cao)).convertTo(cv.MatType.CV_32FC1);
   final nen = cv.gaussianBlur(to, (0, 0), 8);
@@ -353,7 +375,10 @@ class BoTuChup {
       final dt = dienTich(khung) / (wn * hn);
       final d = [
         for (var i = 0; i < 4; i++)
-          math.sqrt(math.pow(khung[i].$1 - khung[(i + 1) % 4].$1, 2) + math.pow(khung[i].$2 - khung[(i + 1) % 4].$2, 2)) + 1e-6
+          math.sqrt(
+                math.pow(khung[i].$1 - khung[(i + 1) % 4].$1, 2) + math.pow(khung[i].$2 - khung[(i + 1) % 4].$2, 2),
+              ) +
+              1e-6,
       ];
       final lech = [d[0] / d[2], d[2] / d[0], d[1] / d[3], d[3] / d[1]].reduce(math.max);
       String? loi;
@@ -368,8 +393,10 @@ class BoTuChup {
     }
 
     // độ sáng, lóa, độ nét trong vùng trang
-    final matNa = cv.erode(cv.fillPoly(matNaRong(hn, wn), daGiac(khung), cv.Scalar.all(1)),
-        cv.Mat.ones(7, 7, cv.MatType.CV_8UC1));
+    final matNa = cv.erode(
+      cv.fillPoly(matNaRong(hn, wn), daGiac(khung), cv.Scalar.all(1)),
+      cv.Mat.ones(7, 7, cv.MatType.CV_8UC1),
+    );
     final md = matNa.data, xd = xam.data;
     final lap = cv.laplacian(xam, cv.MatType.CV_16S, ksize: 3).convertTo(cv.MatType.CV_32FC1);
     final ld = f32(lap);
@@ -403,7 +430,8 @@ class BoTuChup {
       loi = 'toi';
     } else if (nLoa / n > ch.loaToiDa) {
       loi = 'loa';
-    } else if (!kin && tiLeTay(nho, khung) > ch.tayToiDa) { // phủ kín khung: không có mép trang để biết tay thò vào
+    } else if (!kin && tiLeTay(nho, khung) > ch.tayToiDa) {
+      // phủ kín khung: không có mép trang để biết tay thò vào
       loi = 'tay';
     } else if (chuyenDong > ch.chuyenDongToiDa || chuyenDongO > ch.chuyenDongOToiDa) {
       loi = 'rung';
@@ -435,7 +463,10 @@ class BoTuChup {
       _khung0 = khung;
     } else {
       // khung trung bình trượt theo tay cầm máy trôi chậm; khung tìm được rung vài điểm ảnh giữa các khung hình
-      _khung0 = [for (var i = 0; i < 4; i++) (0.8 * _khung0![i].$1 + 0.2 * khung[i].$1, 0.8 * _khung0![i].$2 + 0.2 * khung[i].$2)];
+      _khung0 = [
+        for (var i = 0; i < 4; i++)
+          (0.8 * _khung0![i].$1 + 0.2 * khung[i].$1, 0.8 * _khung0![i].$2 + 0.2 * khung[i].$2),
+      ];
     }
     _ghiLat(buoc);
     _tTot = t;
@@ -501,6 +532,31 @@ const nguongTiLeNet = 0.55;
 
 /// Tỉ lệ chi tiết của một ảnh JPEG (ảnh chụp thật); gọi trong isolate.
 double tiLeNetAnhChup(Uint8List jpeg) => tiLeNet(cv.imdecode(jpeg, cv.IMREAD_GRAYSCALE));
+
+/// Dựng ảnh BGR thu nhỏ từ khung BGRA của camera (iOS: một lớp, 4 byte mỗi điểm), xoay theo hướng cảm biến.
+cv.Mat bgrTuBgra({
+  required Uint8List bgra,
+  required int rong,
+  required int cao,
+  required int buoc,
+  required int xoay,
+  int canh = 640,
+}) {
+  final b = math.max(1, (math.max(rong, cao) / canh).ceil());
+  final w = rong ~/ b, h = cao ~/ b;
+  final kq = cv.Mat.zeros(h, w, cv.MatType.CV_8UC3);
+  final o = kq.data;
+  for (var r = 0; r < h; r++) {
+    final dong = r * b * buoc;
+    for (var c = 0; c < w; c++) {
+      final s = dong + c * b * 4, i = (r * w + c) * 3;
+      o[i] = bgra[s];
+      o[i + 1] = bgra[s + 1];
+      o[i + 2] = bgra[s + 2];
+    }
+  }
+  return xoay90(kq, xoay);
+}
 
 /// Dựng ảnh BGR thu nhỏ từ khung YUV420 của camera (Android), xoay theo hướng cảm biến.
 cv.Mat bgrTuYuv({
